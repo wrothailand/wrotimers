@@ -388,6 +388,37 @@
       font-weight: 600 !important;
       font-size: 1.1rem !important;
     }
+
+    /* Container จัดบาลานซ์ไอคอน */
+.icon-loader-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 20px auto;
+}
+
+/* ตัวหมุนพรีเมียม SVG */
+.premium-svg-spinner {
+  animation: svg-rotate 2s linear infinite;
+  width: 100%;
+  height: 100%;
+}
+
+.premium-svg-spinner circle {
+  stroke: var(--primary);
+  stroke-linecap: round;
+  animation: svg-dash 1.5s ease-in-out infinite;
+}
+
+@keyframes svg-rotate {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes svg-dash {
+  0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 89, 200; stroke-dashoffset: -35px; }
+  100% { stroke-dasharray: 89, 200; stroke-dashoffset: -124px; }
+}
   </style>
 </head>
 <body>
@@ -746,69 +777,69 @@
     }
 
     function saveToSheet(timeStr) {
-      if (!globalRowKey) { 
-        Swal.fire('Error', 'ไม่พบข้อมูล ID ทีมใน URL ลิงก์', 'error');
-        return; 
-      }
-      
-      const loadingTexts = [
-        "กำลังส่งนะ รอหน่อยนะ...",
-        "เน็ตอาจจะช้านิดนึง...",
-        "รอน่าจะไม่เกิน 10 วินาที หรอกมั้ง...",
-        "กำลังเซฟลง Google Sheets...",
-        "เซฟเสร็จละ ก็บอกแล้วแปบเดียว..."
-      ];
-      
-      Swal.fire({
-        html: `
-          <div class="lottie-loading-wrapper">
-            <dotlottie-wc 
-              src="https://lottie.host/f535a150-e558-4562-a2a6-a347fa61f491/cT08C07HGd.lottie" 
-              style="width: 200px; height: 200px;" 
-              autoplay 
-              loop>
-            </dotlottie-wc>
-            <div id="cute-loading-msg" class="loading-cute-text">${loadingTexts[0]}</div>
-          </div>
-        `,
-        showConfirmButton: false,
+  if (!globalRowKey) { 
+    Swal.fire('Error', 'ไม่พบข้อมูล ID ทีมใน URL ลิงก์', 'error');
+    return; 
+  }
+  
+  const loadingTexts = [
+    "กำลังส่งนะ รอหน่อยนะ...",
+    "เน็ตอาจจะช้านิดนึง...",
+    "รอน่าจะไม่เกิน 10 วินาที หรอกมั้ง...",
+    "กำลังเซฟลง Google Sheets...",
+    "เซฟเสร็จละ ก็บอกแล้วแปบเดียว..."
+  ];
+  
+  Swal.fire({
+  html: `
+    <div class="lottie-loading-wrapper">
+      <!-- 🟢 ไอคอน SVG ดีไซน์พรีเมียม (0 KB ไม่โหลดไฟล์นอก) -->
+      <div class="icon-loader-wrapper">
+        <svg class="premium-svg-spinner" viewBox="25 25 50 50">
+          <circle cx="50" cy="50" r="20" fill="none" stroke-width="5" stroke-miterlimit="10"/>
+        </svg>
+      </div>
+      <div id="cute-loading-msg" class="loading-cute-text">${loadingTexts[0]}</div>
+    </div>
+  `,
+  showConfirmButton: false,
+  allowOutsideClick: false,
+  allowEscapeKey: false,
+  didOpen: () => {
+      let textIdx = 1;
+      textRotationInterval = setInterval(() => {
+        const textEl = document.getElementById('cute-loading-msg');
+        if (textEl) {
+          textEl.style.opacity = 0;
+          setTimeout(() => {
+            textEl.innerText = loadingTexts[textIdx % loadingTexts.length];
+            textEl.style.opacity = 1;
+            textIdx++;
+          }, 150);
+        }
+      }, 1600);
+    },
+    willClose: () => {
+      if (textRotationInterval) clearInterval(textRotationInterval);
+    }
+  });
+  
+  callBackend('saveTime', { timeStr: timeStr, deviceID: myDeviceID, rowKey: globalRowKey }, function(res) {
+    // 🟢 ลบ Swal.close(); ตรงนี้ออกไปแล้ว เพื่อให้กล่องด้านล่างนี้แสดงทับกล่องโหลดได้ทันที
+    if(res && res.success) {
+      Swal.fire({ 
+        icon: 'success',
+        title: 'บันทึกแล้วจ้า!',
+        text: `ผลการจับเวลา ${timeStr} วินาที เรียบร้อย`,
         allowOutsideClick: false,
         allowEscapeKey: false,
-        didOpen: () => {
-          let textIdx = 1;
-          textRotationInterval = setInterval(() => {
-            const textEl = document.getElementById('cute-loading-msg');
-            if (textEl) {
-              textEl.style.opacity = 0;
-              setTimeout(() => {
-                textEl.innerText = loadingTexts[textIdx % loadingTexts.length];
-                textEl.style.opacity = 1;
-                textIdx++;
-              }, 150);
-            }
-          }, 1600);
-        },
-        willClose: () => {
-          if (textRotationInterval) clearInterval(textRotationInterval);
-        }
-      });
-      
-      callBackend('saveTime', { timeStr: timeStr, deviceID: myDeviceID, rowKey: globalRowKey }, function(res) {
-        Swal.close(); 
-        if(res && res.success) {
-          Swal.fire({ 
-            icon: 'success',
-            title: 'บันทึกแล้วจ้า!',
-            text: `ผลการจับเวลา ${timeStr} วินาที เรียบร้อย`,
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            confirmButtonText: '❌ ปิดหน้าจอ'
-          }).then((result) => { if (result.isConfirmed) { directClose(); } });
-        } else {
-          Swal.fire('เกิดข้อผิดพลาด', res ? res.error : 'ไม่สามารถส่งข้อมูลได้', 'error');
-        }
-      });
+        confirmButtonText: '❌ ปิดหน้าจอ'
+      }).then((result) => { if (result.isConfirmed) { directClose(); } });
+    } else {
+      Swal.fire('เกิดข้อผิดพลาด', res ? res.error : 'ไม่สามารถส่งข้อมูลได้', 'error');
     }
+  });
+}
 
     function confirmReset() {
       Swal.fire({ 
