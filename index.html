@@ -875,18 +875,19 @@
     }
 
     function loadTeamInfo(rowKey) {
-      callBackend('getTeamInfo', { rowKey: rowKey }, function(info) {
-        if (info) {
-          document.getElementById('display-key').innerText = "Match ID: " + info.key;
-          document.getElementById('display-team-name').innerText = info.teamName || "ไม่พบชื่อทีม";
-          document.getElementById('display-institution').innerText = info.institution || "-";
-        } else {
-          document.getElementById('display-team-name').innerText = "ไม่พบ ID นี้ในระบบ";
-          document.getElementById('display-institution').innerText = "โปรดตรวจสอบฐานข้อมูลชีต";
-          document.getElementById('display-key').innerText = "ID: " + rowKey;
-        }
-      });
+  callBackend('getTeamInfo', { rowKey: rowKey }, function(info) {
+    if (info) {
+      // 🟢 เปลี่ยนจาก info.key เป็น info.teamIdDisplay เพื่อเอาข้อมูลจาก Col F มาแสดง
+      document.getElementById('display-key').innerText = "TEAM ID: " + (info.teamIdDisplay || "-");
+      document.getElementById('display-team-name').innerText = info.teamName || "ไม่พบชื่อทีม";
+      document.getElementById('display-institution').innerText = info.institution || "-";
+    } else {
+      document.getElementById('display-team-name').innerText = "ไม่พบ ID นี้ในระบบ";
+      document.getElementById('display-institution').innerText = "โปรดตรวจสอบฐานข้อมูลชีต";
+      document.getElementById('display-key').innerText = "ID: " + rowKey;
     }
+  });
+}
 
     window.onload = function() {
       document.getElementById('settingBtn').innerText = `LIMIT: ${CONFIG.limit.toFixed(2)}s ⚙️`;
