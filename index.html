@@ -510,11 +510,32 @@
   <script>
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-5W0x3pSIlwE-vCUNOai_mJzQaEZ3gRLhsddK67Dwv3qVWO6qK-qu7U2CGWMUCRe-sQ/exec"; 
     let globalRowKey = ""; 
+
+    // 🟢 1. เพิ่ม Helper Functions เพื่ออ่าน/เขียน Storage ป้องกันเบราว์เซอร์บล็อกบน Iframe
+    function getSafeStorage(key, defaultValue) {
+      try {
+        const val = localStorage.getItem(key);
+        return val !== null ? val : defaultValue;
+      } catch (e) {
+        console.warn("ไม่สามารถอ่าน localStorage ได้:", e);
+        return defaultValue;
+      }
+    }
+
+    function setSafeStorage(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.warn("ไม่สามารถบันทึก localStorage ได้:", e);
+      }
+    }
+
+    // 🟢 2. โหลดค่า CONFIG ผ่าน getSafeStorage
     let CONFIG = {
-      limit: parseFloat(localStorage.getItem('cfg_limit')) || 120,
-      useCountdown: localStorage.getItem('cfg_useCountdown') === 'true',
-      useWarning: localStorage.getItem('cfg_useWarning') !== 'false',
-      warnAt: parseFloat(localStorage.getItem('cfg_warnAt')) || 10
+      limit: parseFloat(getSafeStorage('cfg_limit', '120')) || 120,
+      useCountdown: getSafeStorage('cfg_useCountdown', 'false') === 'true',
+      useWarning: getSafeStorage('cfg_useWarning', 'true') !== 'false',
+      warnAt: parseFloat(getSafeStorage('cfg_warnAt', '10')) || 10
     };
     
     let state = "IDLE"; 
@@ -522,10 +543,11 @@
     let lastBeepSecond = -1;
     let textRotationInterval = null;
 
-    let myDeviceID = localStorage.getItem('timer_device_id');
+    // 🟢 3. โหลดและบันทึก DeviceID แบบ Safe Mode
+    let myDeviceID = getSafeStorage('timer_device_id', null);
     if (!myDeviceID) {
       myDeviceID = 'DEV-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      localStorage.setItem('timer_device_id', myDeviceID);
+      setSafeStorage('timer_device_id', myDeviceID);
     }
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -777,69 +799,67 @@
     }
 
     function saveToSheet(timeStr) {
-  if (!globalRowKey) { 
-    Swal.fire('Error', 'ไม่พบข้อมูล ID ทีมใน URL ลิงก์', 'error');
-    return; 
-  }
-  
-  const loadingTexts = [
-    "กำลังส่งนะ รอหน่อยนะ...",
-    "เน็ตอาจจะช้านิดนึง...",
-    "รอน่าจะไม่เกิน 10 วินาที หรอกมั้ง...",
-    "กำลังเซฟลง Google Sheets...",
-    "เซฟเสร็จละ ก็บอกแล้วแปบเดียว..."
-  ];
-  
-  Swal.fire({
-  html: `
-    <div class="lottie-loading-wrapper">
-      <!-- 🟢 ไอคอน SVG ดีไซน์พรีเมียม (0 KB ไม่โหลดไฟล์นอก) -->
-      <div class="icon-loader-wrapper">
-        <svg class="premium-svg-spinner" viewBox="25 25 50 50">
-          <circle cx="50" cy="50" r="20" fill="none" stroke-width="5" stroke-miterlimit="10"/>
-        </svg>
-      </div>
-      <div id="cute-loading-msg" class="loading-cute-text">${loadingTexts[0]}</div>
-    </div>
-  `,
-  showConfirmButton: false,
-  allowOutsideClick: false,
-  allowEscapeKey: false,
-  didOpen: () => {
-      let textIdx = 1;
-      textRotationInterval = setInterval(() => {
-        const textEl = document.getElementById('cute-loading-msg');
-        if (textEl) {
-          textEl.style.opacity = 0;
-          setTimeout(() => {
-            textEl.innerText = loadingTexts[textIdx % loadingTexts.length];
-            textEl.style.opacity = 1;
-            textIdx++;
-          }, 150);
-        }
-      }, 1600);
-    },
-    willClose: () => {
-      if (textRotationInterval) clearInterval(textRotationInterval);
-    }
-  });
-  
-  callBackend('saveTime', { timeStr: timeStr, deviceID: myDeviceID, rowKey: globalRowKey }, function(res) {
-    // 🟢 ลบ Swal.close(); ตรงนี้ออกไปแล้ว เพื่อให้กล่องด้านล่างนี้แสดงทับกล่องโหลดได้ทันที
-    if(res && res.success) {
-      Swal.fire({ 
-        icon: 'success',
-        title: 'บันทึกแล้วจ้า!',
-        text: `ผลการจับเวลา ${timeStr} วินาที เรียบร้อย`,
+      if (!globalRowKey) { 
+        Swal.fire('Error', 'ไม่พบข้อมูล ID ทีมใน URL ลิงก์', 'error');
+        return; 
+      }
+      
+      const loadingTexts = [
+        "กำลังส่งนะ รอหน่อยนะ...",
+        "เน็ตอาจจะช้านิดนึง...",
+        "รอน่าจะไม่เกิน 10 วินาที หรอกมั้ง...",
+        "กำลังเซฟลง Google Sheets...",
+        "เซฟเสร็จละ ก็บอกแล้วแปบเดียว..."
+      ];
+      
+      Swal.fire({
+        html: `
+          <div class="lottie-loading-wrapper">
+            <div class="icon-loader-wrapper">
+              <svg class="premium-svg-spinner" viewBox="25 25 50 50">
+                <circle cx="50" cy="50" r="20" fill="none" stroke-width="5" stroke-miterlimit="10"/>
+              </svg>
+            </div>
+            <div id="cute-loading-msg" class="loading-cute-text">${loadingTexts[0]}</div>
+          </div>
+        `,
+        showConfirmButton: false,
         allowOutsideClick: false,
         allowEscapeKey: false,
-        confirmButtonText: '❌ ปิดหน้าจอ'
-      }).then((result) => { if (result.isConfirmed) { directClose(); } });
-    } else {
-      Swal.fire('เกิดข้อผิดพลาด', res ? res.error : 'ไม่สามารถส่งข้อมูลได้', 'error');
+        didOpen: () => {
+          let textIdx = 1;
+          textRotationInterval = setInterval(() => {
+            const textEl = document.getElementById('cute-loading-msg');
+            if (textEl) {
+              textEl.style.opacity = 0;
+              setTimeout(() => {
+                textEl.innerText = loadingTexts[textIdx % loadingTexts.length];
+                textEl.style.opacity = 1;
+                textIdx++;
+              }, 150);
+            }
+          }, 1600);
+        },
+        willClose: () => {
+          if (textRotationInterval) clearInterval(textRotationInterval);
+        }
+      });
+      
+      callBackend('saveTime', { timeStr: timeStr, deviceID: myDeviceID, rowKey: globalRowKey }, function(res) {
+        if(res && res.success) {
+          Swal.fire({ 
+            icon: 'success',
+            title: 'บันทึกแล้วจ้า!',
+            text: `ผลการจับเวลา ${timeStr} วินาที เรียบร้อย`,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            confirmButtonText: '❌ ปิดหน้าจอ'
+          }).then((result) => { if (result.isConfirmed) { directClose(); } });
+        } else {
+          Swal.fire('เกิดข้อผิดพลาด', res ? res.error : 'ไม่สามารถส่งข้อมูลได้', 'error');
+        }
+      });
     }
-  });
-}
 
     function confirmReset() {
       Swal.fire({ 
@@ -862,16 +882,17 @@
       document.getElementById('settingModal').style.display = 'flex'; 
     }
     
+    // 🟢 4. แก้ไข saveSettings ให้ใช้ setSafeStorage
     function saveSettings() {
       CONFIG.limit = parseFloat(document.getElementById('setLimit').value) || 120;
       CONFIG.useCountdown = document.getElementById('setCountdown').checked;
       CONFIG.useWarning = document.getElementById('setWarning').checked;
       CONFIG.warnAt = parseFloat(document.getElementById('setWarnAt').value) || 10;
       
-      localStorage.setItem('cfg_limit', CONFIG.limit);
-      localStorage.setItem('cfg_useCountdown', CONFIG.useCountdown);
-      localStorage.setItem('cfg_useWarning', CONFIG.useWarning);
-      localStorage.setItem('cfg_warnAt', CONFIG.warnAt);
+      setSafeStorage('cfg_limit', CONFIG.limit);
+      setSafeStorage('cfg_useCountdown', CONFIG.useCountdown);
+      setSafeStorage('cfg_useWarning', CONFIG.useWarning);
+      setSafeStorage('cfg_warnAt', CONFIG.warnAt);
 
       document.getElementById('settingBtn').innerText = `LIMIT: ${CONFIG.limit.toFixed(2)}s ⚙️`;
       document.getElementById('settingModal').style.display = 'none';
@@ -906,19 +927,18 @@
     }
 
     function loadTeamInfo(rowKey) {
-  callBackend('getTeamInfo', { rowKey: rowKey }, function(info) {
-    if (info) {
-      // 🟢 เปลี่ยนจาก info.key เป็น info.teamIdDisplay เพื่อเอาข้อมูลจาก Col F มาแสดง
-      document.getElementById('display-key').innerText = "TEAM ID: " + (info.teamIdDisplay || "-");
-      document.getElementById('display-team-name').innerText = info.teamName || "ไม่พบชื่อทีม";
-      document.getElementById('display-institution').innerText = info.institution || "-";
-    } else {
-      document.getElementById('display-team-name').innerText = "ไม่พบ ID นี้ในระบบ";
-      document.getElementById('display-institution').innerText = "โปรดตรวจสอบฐานข้อมูลชีต";
-      document.getElementById('display-key').innerText = "ID: " + rowKey;
+      callBackend('getTeamInfo', { rowKey: rowKey }, function(info) {
+        if (info) {
+          document.getElementById('display-key').innerText = "TEAM ID: " + (info.teamIdDisplay || "-");
+          document.getElementById('display-team-name').innerText = info.teamName || "ไม่พบชื่อทีม";
+          document.getElementById('display-institution').innerText = info.institution || "-";
+        } else {
+          document.getElementById('display-team-name').innerText = "ไม่พบ ID นี้ในระบบ";
+          document.getElementById('display-institution').innerText = "โปรดตรวจสอบฐานข้อมูลชีต";
+          document.getElementById('display-key').innerText = "ID: " + rowKey;
+        }
+      });
     }
-  });
-}
 
     window.onload = function() {
       document.getElementById('settingBtn').innerText = `LIMIT: ${CONFIG.limit.toFixed(2)}s ⚙️`;
@@ -937,6 +957,6 @@
         }
       });
     };
-  </script>
+</script>
 </body>
 </html>
